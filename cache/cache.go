@@ -1,4 +1,4 @@
-package main
+package cache
 
 import (
 	"context"
@@ -6,12 +6,14 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+var Instance Cache
+
 type Cache interface {
 	Get(key string) (interface{}, error)
 	Set(key string, value interface{}) error
 }
 
-func InitCache() Cache {
+func SetupCache() *Cache {
 	// Check if redis is running otherwise use in memory cache
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -21,10 +23,12 @@ func InitCache() Cache {
 
 	_, err := redisClient.Ping(context.Background()).Result()
 	if err != nil {
-		return newInMemoryCache()
+		Instance = newInMemoryCache()
+	} else {
+		Instance = newRedisCache(redisClient, context.Background())
 	}
 
-	return newRedisCache(redisClient, context.Background())
+	return &Instance
 }
 
 // ~ In memory caching ~

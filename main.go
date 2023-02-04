@@ -7,13 +7,21 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Leyka/picor/cache"
+	"github.com/Leyka/picor/geocoder"
+	"github.com/joho/godotenv"
 	"github.com/rwcarlsen/goexif/exif"
 )
 
-var cache Cache
+type Exif struct {
+	year     string
+	location *geocoder.Location
+}
 
 func main() {
-	cache = InitCache()
+	godotenv.Load()
+	cache.SetupCache()
+	geocoder.SetupGeocoderAPI()
 
 	srcDir := "debug"
 	destDir := "dest"
@@ -24,17 +32,19 @@ func main() {
 	}
 
 	for _, src := range mediaPaths {
-		year, err := extractYear(src)
+		exif, err := extractExif(src)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		destYearDir := filepath.Join(destDir, year)
+		destYearDir := filepath.Join(destDir, exif.year, exif.location.Country, exif.location.City)
 		createDestDir(destYearDir)
 
 		dest := filepath.Join(destYearDir, filepath.Base(src))
 		copyFile(src, dest, true)
 	}
+
+	log.Println("Done!")
 }
 
 func listMediaPaths(rootPath string) ([]string, error) {
@@ -81,24 +91,45 @@ func isImageType(filePath string) bool {
 		contentType == "image/heic"
 }
 
-func extractYear(path string) (string, error) {
+func extractExif(path string) (*Exif, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer f.Close()
 
-	x, err := exif.Decode(f)
+	decodedExif, err := exif.Decode(f)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	dt, err := x.DateTime()
+	dt, err := decodedExif.DateTime()
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	year := dt.Format("2006")
+
+	lat, long, err := decodedExif.LatLong()
+	if err != nil {
+		return &Exif{
+			year: year,
+			location: &geocoder.Location{
+				Country: "Unknown Country",
+				City:    "Unknown City",
+			},
+		}, nil
 	}
 
-	return dt.Format("2006"), nil
+	geocode := geocoder.NewGeoCode(lat, long)
+	location, err := geocode.GetLocation()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Exif{
+		year:     year,
+		location: location,
+	}, nil
 }
 
 func createDestDir(destDir string) {
