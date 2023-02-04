@@ -1,181 +1,56 @@
 package main
 
 import (
-	"io"
+	"fmt"
 	"log"
-	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/Leyka/picor/cache"
+	"github.com/Leyka/picor/exif"
+	"github.com/Leyka/picor/file"
 	"github.com/Leyka/picor/geocoder"
 	"github.com/joho/godotenv"
-	"github.com/rwcarlsen/goexif/exif"
 )
 
-type Exif struct {
-	year     string
-	location *geocoder.Location
+func setup() {
+	// Loads .env in memory
+	godotenv.Load()
+
+	cache.SetupCache()
+
+	geocoder.SetupGeocoderAPI()
 }
 
 func main() {
-	godotenv.Load()
-	cache.SetupCache()
-	geocoder.SetupGeocoderAPI()
+	setup()
 
 	srcDir := "debug"
 	destDir := "dest"
 
-	mediaPaths, err := listMediaPaths(srcDir)
+	filePaths, err := file.ListFilePathsByContentType(srcDir, file.IsTypeImage) // Only image exif is supported right now
 	if err != nil {
-		log.Panic(err)
+		log.Panicln(err)
 	}
 
-	for _, src := range mediaPaths {
-		exif, err := extractExif(src)
+	for _, srcPath := range filePaths {
+		exif, err := exif.ExtractExif(srcPath, nil)
 		if err != nil {
-			log.Fatal(err)
+			log.Panicln(err)
 		}
 
-		destYearDir := filepath.Join(destDir, exif.year, exif.location.Country, exif.location.City)
-		createDestDir(destYearDir)
+		destDirPath := filepath.Join(destDir, exif.Year, exif.Country, exif.City)
+		file.CreateDirectoryIfNotExist(destDirPath)
 
-		dest := filepath.Join(destYearDir, filepath.Base(src))
-		copyFile(src, dest, true)
-	}
+		destDirFile := filepath.Join(destDirPath, filepath.Base(srcPath))
+		err = file.CopyFile(srcPath, destDirFile, &file.CopyOptions{
+			ReplaceFile: true,
+			BufferSize:  file.DEFAULT_BUFFER_SIZE,
+		})
 
-	log.Println("Done!")
-}
-
-func listMediaPaths(rootPath string) ([]string, error) {
-	var files []string
-
-	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		if isImageType(path) {
-			files = append(files, path)
-		}
-
-		return nil
-	})
-
-	return files, err
-}
-
-func isImageType(filePath string) bool {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return false
-	}
-	defer f.Close()
-
-	var buffer [512]byte
-	to, err := f.Read(buffer[:])
-	if err != nil {
-		return false
-	}
-
-	contentType := http.DetectContentType(buffer[:to])
-
-	return contentType == "image/jpeg" ||
-		contentType == "image/png" ||
-		contentType == "image/gif" ||
-		contentType == "image/heif" ||
-		contentType == "image/heic"
-}
-
-func extractExif(path string) (*Exif, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	decodedExif, err := exif.Decode(f)
-	if err != nil {
-		return nil, err
-	}
-
-	dt, err := decodedExif.DateTime()
-	if err != nil {
-		return nil, err
-	}
-	year := dt.Format("2006")
-
-	lat, long, err := decodedExif.LatLong()
-	if err != nil {
-		return &Exif{
-			year: year,
-			location: &geocoder.Location{
-				Country: "Unknown Country",
-				City:    "Unknown City",
-			},
-		}, nil
-	}
-
-	geocode := geocoder.NewGeoCode(lat, long)
-	location, err := geocode.GetLocation()
-	if err != nil {
-		return nil, err
-	}
-
-	return &Exif{
-		year:     year,
-		location: location,
-	}, nil
-}
-
-func createDestDir(destDir string) {
-	if _, err := os.Stat(destDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(destDir, 0755); err != nil {
-			log.Fatalf("Failed to create directory: %v", err)
+			log.Panicln(err)
 		}
 	}
-}
 
-func copyFile(srcPath string, destPath string, replaceFile bool) {
-	if !replaceFile && fileExists(destPath) {
-		return
-	}
-
-	src, err := os.Open(srcPath)
-	if err != nil {
-		log.Fatalf("Failed to open source file: %v", err)
-	}
-	defer src.Close()
-
-	dest, err := os.Create(destPath)
-	if err != nil {
-		log.Fatalf("Failed to create destination file: %v", err)
-	}
-	defer dest.Close()
-
-	// 5 MB chunks
-	buf := make([]byte, 5*1024*1024)
-	for {
-		n, err := src.Read(buf)
-		if err != nil && err != io.EOF {
-			log.Fatalf("Failed to read source file: %v", err)
-		}
-
-		if n == 0 {
-			break
-		}
-
-		if _, err := dest.Write(buf[:n]); err != nil {
-			log.Fatalf("Failed to write destination file: %v", err)
-		}
-	}
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return !os.IsNotExist(err)
+	fmt.Println("Done!")
 }

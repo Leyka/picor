@@ -8,3 +8,4 @@
 *.env
 debug/
 dest/
+picor

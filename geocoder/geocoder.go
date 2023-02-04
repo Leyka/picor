@@ -7,6 +7,11 @@ import (
 	"github.com/Leyka/picor/cache"
 )
 
+var UNKNOWN_LOCATION = &Location{
+	City:    "Unknown City",
+	Country: "Unknown Country",
+}
+
 type GeoCode struct {
 	Latitude  float64
 	Longitude float64
@@ -25,7 +30,11 @@ func NewGeoCode(lat, lng float64) *GeoCode {
 }
 
 func (g *GeoCode) format() string {
-	return fmt.Sprintf("%f,%f", g.Latitude, g.Longitude)
+	// Keep 4 first decimals to avoid too many cache entries
+	lat := fmt.Sprintf("%.4f", g.Latitude)
+	lng := fmt.Sprintf("%.4f", g.Longitude)
+
+	return fmt.Sprintf("%s,%s", lat, lng)
 }
 
 func (g *GeoCode) GetLocation() (*Location, error) {

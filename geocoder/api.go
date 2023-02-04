@@ -6,26 +6,41 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"time"
 )
 
 var api geocodeAPI
 
 type geocodeAPI interface {
 	ReverseGeocode(*GeoCode) (*Location, error)
+	Ping() error
 }
 
+// Check if TomTom API key is set and working, otherwise use OpenStreetMap API.
+// If neither are working, use the mock API
 func SetupGeocoderAPI() {
-	// Check if Tomtom API key is set otherwise use OpenStreetMap
 	tomtomAPIKey := os.Getenv("TOMTOM_API_KEY")
 	if tomtomAPIKey != "" {
-		api = newTomTomGeocoder(tomtomAPIKey)
-	} else {
-		api = newOpenStreetMapGeocoder()
+		tomtom := newTomTomGeocoder(tomtomAPIKey)
+		if err := tomtom.Ping(); err == nil {
+			fmt.Println("Using TomTom API as geocoding service")
+			api = tomtom
+			return
+		}
 	}
+
+	osm := newOpenStreetMapGeocoder()
+	if err := osm.Ping(); err == nil {
+		fmt.Println("Using OpenStreetMap API as geocoding service")
+		api = osm
+		return
+	}
+
+	fmt.Println("No API as geocoding service")
+	api = newMockGeocoder()
 }
 
 // ~ TomTom Geocoding ~
+// Free. Rate limit 2,500 requests per day. API key required.
 type tomTomGeocoder struct {
 	apiKey string
 }
@@ -64,7 +79,13 @@ func (t *tomTomGeocoder) ReverseGeocode(geocode *GeoCode) (*Location, error) {
 	return &Location{City: city, Country: country}, nil
 }
 
+func (t *tomTomGeocoder) Ping() error {
+	_, err := t.ReverseGeocode(&GeoCode{Latitude: 40.730610, Longitude: -73.935242})
+	return err
+}
+
 // ~ OpenStreetMap Geocoding ~
+// Free. Rate limit 1 request per second. No API key required.
 type OpenStreetMapGeocoder struct{}
 
 func newOpenStreetMapGeocoder() *OpenStreetMapGeocoder {
@@ -90,9 +111,29 @@ func (o *OpenStreetMapGeocoder) ReverseGeocode(geocode *GeoCode) (*Location, err
 	}
 	country := address["country"].(string)
 
-	time.Sleep(1 * time.Second) // Rate limit
+	// time.Sleep(1 * time.Second) // Rate limit
 
 	return &Location{City: city, Country: country}, nil
+}
+
+func (o *OpenStreetMapGeocoder) Ping() error {
+	_, err := o.ReverseGeocode(&GeoCode{Latitude: 40.730610, Longitude: -73.935242})
+	return err
+}
+
+// ~ Mock Geocoding ~
+type MockGeocoder struct{}
+
+func newMockGeocoder() *MockGeocoder {
+	return &MockGeocoder{}
+}
+
+func (m *MockGeocoder) ReverseGeocode(geocode *GeoCode) (*Location, error) {
+	return UNKNOWN_LOCATION, nil
+}
+
+func (m *MockGeocoder) Ping() error {
+	return nil
 }
 
 // Calls http get and returns JSON data
