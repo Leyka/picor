@@ -10,7 +10,11 @@ import (
 	"github.com/rwcarlsen/goexif/exif"
 )
 
+var cache Cache
+
 func main() {
+	cache = InitCache()
+
 	srcDir := "debug"
 	destDir := "dest"
 
