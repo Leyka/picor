@@ -111,8 +111,6 @@ func (o *OpenStreetMapGeocoder) ReverseGeocode(geocode *GeoCode) (*Location, err
 	}
 	country := address["country"].(string)
 
-	// time.Sleep(1 * time.Second) // Rate limit
-
 	return &Location{City: city, Country: country}, nil
 }
 

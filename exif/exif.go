@@ -29,7 +29,7 @@ type Exif struct {
 
 func Setup() {
 	// Create new instance of exiftool with 4 decimal places for lat/long
-	et, err := exiftool.NewExiftool(exiftool.CoordFormant("%f"))
+	et, err := exiftool.NewExiftool(exiftool.CoordFormant("%+.6f"))
 	if err != nil {
 		log.Panicln(err)
 	}
