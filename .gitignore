@@ -6,6 +6,6 @@
 *.test
 *.out
 *.env
-debug/
+*debug*
 dest/
 picor

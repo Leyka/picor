@@ -1,6 +1,7 @@
 package file
 
 import (
+	"bytes"
 	"net/http"
 	"os"
 	"regexp"
@@ -15,13 +16,19 @@ func getFileContentType(filePath string) (string, error) {
 	}
 	defer f.Close()
 
-	var buffer [512]byte
-	to, err := f.Read(buffer[:])
+	var header [512]byte
+	to, err := f.Read(header[:])
 	if err != nil {
 		return "", err
 	}
 
-	contentType := http.DetectContentType(buffer[:to])
+	contentType := http.DetectContentType(header[:to])
+	// Fix for heic files: http.DetectContentType returns "application/octet-stream"
+	// Read the magic number of heic file
+	if contentType == "application/octet-stream" && bytes.Equal(header[4:12], []byte("ftypheic")) {
+		contentType = "image/heic"
+	}
+
 	return contentType, nil
 }
 
