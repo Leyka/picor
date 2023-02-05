@@ -40,6 +40,47 @@ func CleanUp() {
 	instance.Close()
 }
 
+type PathExif struct {
+	Path string
+	Exif *Exif
+}
+
+func ExtractExifs(filePaths []string, opt *ExifOptions) ([]*PathExif, error) {
+	if opt == nil {
+		opt = DEFAULT_EXIF_OPTIONS
+	}
+
+	metadatas := instance.ExtractMetadata(filePaths...)
+
+	var pathExifs []*PathExif
+
+	for i, metadata := range metadatas {
+		var month, year string
+		if opt.IncludeDate {
+			month, year = extractMonthYear(&metadata)
+		}
+
+		var location *geocoder.Location
+		if opt.IncludeLocation {
+			location = extractLocation(&metadata)
+		}
+
+		exif := &Exif{
+			Month:   month,
+			Year:    year,
+			City:    location.City,
+			Country: location.Country,
+		}
+
+		pathExifs = append(pathExifs, &PathExif{
+			Path: filePaths[i],
+			Exif: exif,
+		})
+	}
+
+	return pathExifs, nil
+}
+
 func ExtractExif(filePath string, opt *ExifOptions) (*Exif, error) {
 	if opt == nil {
 		opt = DEFAULT_EXIF_OPTIONS
