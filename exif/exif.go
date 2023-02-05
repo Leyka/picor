@@ -2,11 +2,13 @@ package exif
 
 import (
 	"fmt"
-	"os"
+	"log"
 
 	"github.com/Leyka/picor/geocoder"
-	"github.com/rwcarlsen/goexif/exif"
+	"github.com/barasher/go-exiftool"
 )
+
+var instance *exiftool.Exiftool
 
 type ExifOptions struct {
 	IncludeDate     bool
@@ -25,30 +27,34 @@ type Exif struct {
 	Country string
 }
 
+func Setup() {
+	// Create new instance of exiftool with 4 decimal places for lat/long
+	et, err := exiftool.NewExiftool(exiftool.CoordFormant("%f"))
+	if err != nil {
+		log.Panicln(err)
+	}
+	instance = et
+}
+
+func CleanUp() {
+	instance.Close()
+}
+
 func ExtractExif(filePath string, opt *ExifOptions) (*Exif, error) {
 	if opt == nil {
 		opt = DEFAULT_EXIF_OPTIONS
 	}
 
-	f, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	decodedExif, err := exif.Decode(f)
-	if err != nil {
-		return nil, err
-	}
+	metadata := instance.ExtractMetadata(filePath)[0]
 
 	var month, year string
 	if opt.IncludeDate {
-		month, year = extractMonthYear(decodedExif)
+		month, year = extractMonthYear(&metadata)
 	}
 
 	var location *geocoder.Location
 	if opt.IncludeLocation {
-		location = extractLocation(decodedExif)
+		location = extractLocation(&metadata)
 	}
 
 	return &Exif{
@@ -59,21 +65,27 @@ func ExtractExif(filePath string, opt *ExifOptions) (*Exif, error) {
 	}, nil
 }
 
-func extractMonthYear(decodedExif *exif.Exif) (string, string) {
-	dt, err := decodedExif.DateTime()
-	if err != nil {
+func extractMonthYear(metadata *exiftool.FileMetadata) (string, string) {
+	createDate := metadata.Fields["CreateDate"]
+	if createDate == nil {
 		return "", ""
 	}
 
-	month := dt.Format("01")
-	year := dt.Format("2006")
-
+	// Format 2019:09:01 12:00:00
+	month := createDate.(string)[5:7]
+	year := createDate.(string)[0:4]
 	return month, year
 }
 
-func extractLocation(decodedExif *exif.Exif) *geocoder.Location {
-	lat, long, err := decodedExif.LatLong()
-	if err != nil {
+func extractLocation(metadata *exiftool.FileMetadata) *geocoder.Location {
+	gpsLatitude := fmt.Sprintf("%v", metadata.Fields["GPSLatitude"])
+	gpsLongitude := fmt.Sprintf("%v", metadata.Fields["GPSLongitude"])
+
+	var lat, long float64
+	fmt.Sscanf(gpsLatitude, "%f", &lat)
+	fmt.Sscanf(gpsLongitude, "%f", &long)
+
+	if lat == 0 && long == 0 {
 		return geocoder.UNKNOWN_LOCATION
 	}
 

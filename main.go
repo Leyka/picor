@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"time"
 
 	"github.com/Leyka/picor/cache"
 	"github.com/Leyka/picor/exif"
@@ -19,15 +20,22 @@ func setup() {
 	cache.SetupCache()
 
 	geocoder.SetupGeocoderAPI()
+
+	exif.Setup()
+}
+
+func Cleanup() {
+	exif.CleanUp()
 }
 
 func main() {
+	start := time.Now()
 	setup()
 
 	srcDir := "debug"
 	destDir := "dest"
 
-	filePaths, err := file.ListFilePathsByContentType(srcDir, file.IsTypeImage) // Only image exif is supported right now
+	filePaths, err := file.ListFilePathsByContentType(srcDir, file.IsTypeImageOrVideo)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -52,5 +60,6 @@ func main() {
 		}
 	}
 
-	fmt.Println("Done!")
+	Cleanup()
+	fmt.Println("Done! Elapsed time: ", time.Since(start))
 }
