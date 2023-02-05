@@ -7,5 +7,5 @@
 *.out
 *.env
 *debug*
-dest/
 picor
+test_photos/
