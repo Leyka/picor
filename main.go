@@ -16,7 +16,7 @@ import (
 	_ "net/http/pprof"
 )
 
-const MAX_WORKERS = 4
+const MAX_WORKERS = 10
 
 func setup() {
 	// Loads .env in memory
@@ -49,10 +49,11 @@ func main() {
 
 	var wg sync.WaitGroup
 	filesChan := make(chan string, MAX_WORKERS)
+	pathExifsChan := exif.ExtractExifs(files, nil)
 
 	for i := 0; i < MAX_WORKERS; i++ {
 		wg.Add(1)
-		go worker(filesChan, destDir, &wg)
+		go worker(filesChan, pathExifsChan, destDir, &wg)
 	}
 
 	for _, file := range files {
@@ -64,22 +65,19 @@ func main() {
 	fmt.Println("Done! Time elapsed:", time.Since(start))
 }
 
-func worker(srcFilePathsChan <-chan string, destDir string, wg *sync.WaitGroup) {
+func worker(srcFilePathsChan <-chan string, pathExifsChan <-chan *exif.PathExif, destDir string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// Every time srcFilePathsChan is filled, this loop will be executed
 	for srcPath := range srcFilePathsChan {
-		exif, err := exif.ExtractExif(srcPath, nil)
-		if err != nil {
-			log.Println("Error extracting exif data from file:", err)
-			continue
-		}
+		pathExif := <-pathExifsChan
+		exif := pathExif.Exif
 
 		destDirPath := filepath.Join(destDir, exif.Year, exif.Country, exif.City)
 		file.CreateDirectoryIfNotExist(destDirPath)
 
 		destDirFile := filepath.Join(destDirPath, filepath.Base(srcPath))
-		err = file.CopyFile(srcPath, destDirFile, &file.CopyOptions{
+		err := file.CopyFile(srcPath, destDirFile, &file.CopyOptions{
 			ReplaceFile: true,
 			BufferSize:  file.DEFAULT_BUFFER_SIZE,
 		})
