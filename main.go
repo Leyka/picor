@@ -31,7 +31,7 @@ func main() {
 	setup()
 	defer cleanup()
 
-	files, err := file.ListFiles("test_photos", file.IsTypeImageOrVideo)
+	files, err := file.ListFiles("/Users/skander.kchouk/Desktop/photos", file.IsTypeImageOrVideo)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -45,7 +45,7 @@ func main() {
 
 	bar := progressbar.NewOptions(totalFiles,
 		progressbar.OptionSetDescription("copying"),
-		progressbar.OptionSetElapsedTime(false),
+		progressbar.OptionSetElapsedTime(true),
 		progressbar.OptionSetPredictTime(false),
 		progressbar.OptionSetWidth(40),
 		progressbar.OptionShowCount(),
