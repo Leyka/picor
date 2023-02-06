@@ -22,7 +22,8 @@ func Setup() {
 
 	_, err := redisClient.Ping(context.Background()).Result()
 	if err != nil {
-		instance = newInMemoryCache()
+		persist := true
+		instance = newInMemoryCache(persist)
 		return
 	}
 

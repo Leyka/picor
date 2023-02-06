@@ -35,7 +35,7 @@ func ListFiles(fromPath string, matchesType MatchesTypeFn) ([]string, error) {
 }
 
 func CreateDirectoryIfNotExist(dirPath string) error {
-	if !exists(dirPath) {
+	if !Exists(dirPath) {
 		if err := os.MkdirAll(dirPath, 0755); err != nil {
 			return err
 		}
@@ -50,7 +50,7 @@ type CopyOptions struct {
 }
 
 func CopyFile(srcPath string, destPath string, opt *CopyOptions) error {
-	if !opt.ReplaceFile && exists(destPath) {
+	if !opt.ReplaceFile && Exists(destPath) {
 		return nil
 	}
 
@@ -85,7 +85,7 @@ func CopyFile(srcPath string, destPath string, opt *CopyOptions) error {
 	return nil
 }
 
-func exists(path string) bool {
+func Exists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
 }
