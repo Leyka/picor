@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/Leyka/picor/cache"
@@ -12,11 +13,11 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-const MAX_WORKERS = 1
+var NUM_WORKERS = runtime.NumCPU()
 
 func setup() {
 	cache.Setup()
-	metadata.Setup(MAX_WORKERS)
+	metadata.Setup(NUM_WORKERS)
 }
 
 func cleanup() {
@@ -35,10 +36,10 @@ func main() {
 		log.Panicln(err)
 	}
 	totalFiles := len(files)
-	fmt.Println("Found", totalFiles, "files to process")
+	fmt.Println("~ Found", totalFiles, "images/videos to organize")
 
 	// Create a channel to keep track of the number of processed files
-	processedFilesChan := make(chan int, MAX_WORKERS)
+	processedFilesChan := make(chan int, NUM_WORKERS)
 
 	go startWorkers(files, processedFilesChan, "dest")
 
@@ -49,32 +50,31 @@ func main() {
 		progressbar.OptionSetWidth(40),
 		progressbar.OptionShowCount(),
 		progressbar.OptionSetRenderBlankState(true),
-		progressbar.OptionClearOnFinish(),
+		progressbar.OptionOnCompletion(func() {
+			fmt.Println()
+			fmt.Println("~ Completed in", time.Since(start))
+		}),
 	)
 
 	processedFiles := 0
 	for count := range processedFilesChan {
 		// Update progress bar
-		processedFiles += count
-		bar.Add(processedFiles)
+		bar.Add(count)
 
+		processedFiles += count
 		if processedFiles == totalFiles {
 			close(processedFilesChan)
+			bar.Finish()
 		}
 	}
-
-	// All files have been processed
-	bar.Finish()
-	fmt.Println()
-	fmt.Println("Done! It took", time.Since(start))
 }
 
 func startWorkers(files []string, processedFilesChan chan<- int, destDir string) {
-	filesChan := make(chan string, MAX_WORKERS)
+	filesChan := make(chan string, NUM_WORKERS)
 	defer close(filesChan)
 
 	// Start workers that will receive files to process
-	for i := 0; i < MAX_WORKERS; i++ {
+	for i := 0; i < NUM_WORKERS; i++ {
 		go processFileWorker(i, filesChan, processedFilesChan, destDir)
 	}
 
@@ -93,6 +93,7 @@ func processFileWorker(id int, filesChan <-chan string, processedFilesChan chan<
 			continue
 		}
 
+		// TODO: Handle when no date, no country etc...
 		destDirPath := filepath.Join(destDir, metadata.CreatedYear)
 		file.CreateDirectoryIfNotExist(destDirPath)
 
