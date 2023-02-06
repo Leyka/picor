@@ -3,3 +3,7 @@ run:
 
 test:
 	go test -v ./...
+
+clean:
+	rm -rf dest
+	rm -f ./picor
