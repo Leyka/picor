@@ -47,7 +47,18 @@ func ExtractMetadata(instanceId int, file string, options *Options) (*Metadata, 
 		}, metadata.Err
 	}
 
-	month, year := getMonthYear(&metadata)
+	date := getDateFromExif(&metadata)
+	if date == nil {
+		// Fallback to file name
+		date = TryGetDateFromFile(file)
+		if date == nil {
+			date = &Date{
+				year:  "",
+				month: "",
+				day:   "",
+			}
+		}
+	}
 
 	var city, country string = "", ""
 	if options.FetchLocation {
@@ -56,23 +67,11 @@ func ExtractMetadata(instanceId int, file string, options *Options) (*Metadata, 
 
 	return &Metadata{
 		FilePath:     file,
-		CreatedYear:  year,
-		CreatedMonth: month,
+		CreatedYear:  date.year,
+		CreatedMonth: date.month,
 		City:         city,
 		Country:      country,
 	}, nil
-}
-
-func getMonthYear(metadata *exiftool.FileMetadata) (string, string) {
-	createDate := metadata.Fields["CreateDate"]
-	if createDate == nil {
-		return "", ""
-	}
-
-	// Format 2019:09:01 12:00:00
-	month := createDate.(string)[5:7]
-	year := createDate.(string)[0:4]
-	return month, year
 }
 
 func getLocation(metadata *exiftool.FileMetadata) (string, string) {
