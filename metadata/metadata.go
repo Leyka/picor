@@ -47,10 +47,10 @@ func ExtractMetadata(instanceId int, file string, options *Options) (*Metadata, 
 		}, metadata.Err
 	}
 
-	date := getDateFromExif(&metadata)
+	date := extractDate(&metadata)
 	if date == nil {
 		// Fallback to file name
-		date = TryGetDateFromFile(file)
+		date = tryGetDateFromFile(file)
 		if date == nil {
 			date = &Date{
 				year:  "",
@@ -62,7 +62,7 @@ func ExtractMetadata(instanceId int, file string, options *Options) (*Metadata, 
 
 	var city, country string = "", ""
 	if options.FetchLocation {
-		city, country = getLocation(&metadata)
+		// coord := extractGPSCoordinates(&metadata)
 	}
 
 	return &Metadata{
@@ -72,9 +72,4 @@ func ExtractMetadata(instanceId int, file string, options *Options) (*Metadata, 
 		City:         city,
 		Country:      country,
 	}, nil
-}
-
-func getLocation(metadata *exiftool.FileMetadata) (string, string) {
-	// TODO
-	return "", ""
 }

@@ -14,7 +14,7 @@ type Date struct {
 	day   string
 }
 
-func getDateFromExif(metadata *exiftool.FileMetadata) *Date {
+func extractDate(metadata *exiftool.FileMetadata) *Date {
 	createDate := metadata.Fields["CreateDate"]
 	if createDate == nil {
 		return nil
@@ -29,7 +29,7 @@ func getDateFromExif(metadata *exiftool.FileMetadata) *Date {
 }
 
 // Try to get the date from the file name
-func TryGetDateFromFile(fileName string) *Date {
+func tryGetDateFromFile(fileName string) *Date {
 	formats := []string{
 		`(\d{4})[\D]*(\d{2})[\D]*(\d{2})`, // YYYYMMDD (or YYYYDDMM...)
 		`(\d{2})[\D]*(\d{2})[\D]*(\d{4})`, // DDMMYYYY (or MMDDYYYY)

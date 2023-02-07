@@ -31,7 +31,7 @@ func main() {
 	setup()
 	defer cleanup()
 
-	files, err := file.ListFiles("test_photos", file.IsTypeImageOrVideo)
+	files, err := file.ListFiles("debug", file.IsTypeImageOrVideo)
 	if err != nil {
 		log.Panicln(err)
 	}

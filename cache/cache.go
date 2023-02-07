@@ -1,11 +1,5 @@
 package cache
 
-import (
-	"context"
-
-	"github.com/redis/go-redis/v9"
-)
-
 var instance Cache
 
 type Cache interface {
@@ -15,19 +9,12 @@ type Cache interface {
 }
 
 func Setup() {
-	// Redis running? If not then use in-memory cache
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+	instance = newInMemoryCache(newMemoryParams{
+		persist:  true,
+		fileName: ".cache",
 	})
 
-	_, err := redisClient.Ping(context.Background()).Result()
-	if err != nil {
-		persist := true
-		instance = newInMemoryCache(persist)
-		return
-	}
-
-	instance = newRedisCache(redisClient, context.Background())
+	instance.Set("test", "test")
 }
 
 func Close() {

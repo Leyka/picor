@@ -6,4 +6,4 @@ test:
 
 clean:
 	rm -rf dest
-	rm -f ./picor .cache.json
+	rm -f ./picor .cache*

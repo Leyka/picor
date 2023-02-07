@@ -9,27 +9,37 @@ import (
 	"github.com/Leyka/picor/file"
 )
 
-// Used to dump the cache to a file when the program exits
-const DATA_FILE = ".cache.json"
-
 type inMemoryCache struct {
-	data    *map[string]interface{}
-	persist bool
-	mu      sync.Mutex
+	data     *map[string]interface{}
+	mu       sync.Mutex
+	persist  bool
+	fileName string
 }
 
-func newInMemoryCache(persist bool) *inMemoryCache {
-	var m map[string]interface{}
+type newMemoryParams struct {
+	persist  bool
+	fileName string
+}
 
-	if file.Exists(DATA_FILE) {
-		m = *load()
-	} else {
-		m = make(map[string]interface{})
+func newInMemoryCache(params newMemoryParams) *inMemoryCache {
+	var data map[string]interface{}
+
+	if file.Exists(params.fileName) {
+		data, err := deserialize(params.fileName)
+		if err == nil {
+			return &inMemoryCache{
+				data:     data,
+				persist:  params.persist,
+				fileName: params.fileName,
+			}
+		}
 	}
 
+	data = make(map[string]interface{})
 	return &inMemoryCache{
-		data:    &m,
-		persist: persist,
+		data:     &data,
+		persist:  params.persist,
+		fileName: params.fileName,
 	}
 }
 
@@ -54,42 +64,38 @@ func (c *inMemoryCache) Set(key string, value interface{}) error {
 }
 
 func (c *inMemoryCache) close() {
-	if len(*c.data) == 0 {
+	if len(*c.data) == 0 || !c.persist {
 		return
 	}
 
-	if c.persist {
-		c.dump()
-	}
+	c.serialize()
 }
 
-func (c *inMemoryCache) dump() {
-	// Deserialize the cache (map) to a json file
+func (c *inMemoryCache) serialize() error {
 	b, err := json.Marshal(*c.data)
 	if err != nil {
-		fmt.Println("error:", err)
+		return err
 	}
 
-	err = ioutil.WriteFile(DATA_FILE, b, 0644)
+	err = ioutil.WriteFile(c.fileName, b, 0644)
 	if err != nil {
-		fmt.Println("error:", err)
+		return err
 	}
+
+	return nil
 }
 
-func load() *map[string]interface{} {
-	// Load the cache from a file
-	b, err := ioutil.ReadFile(DATA_FILE)
+func deserialize(fileName string) (*map[string]interface{}, error) {
+	b, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		fmt.Println("error:", err)
-		return &map[string]interface{}{}
+		return nil, err
 	}
 
 	var m map[string]interface{}
 	err = json.Unmarshal(b, &m)
 	if err != nil {
-		fmt.Println("error:", err)
-		return &map[string]interface{}{}
+		return nil, err
 	}
 
-	return &m
+	return &m, nil
 }
