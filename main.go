@@ -3,21 +3,29 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/Leyka/picor/cache"
 	"github.com/Leyka/picor/file"
+	"github.com/Leyka/picor/geocoding"
 	"github.com/Leyka/picor/metadata"
+	"github.com/joho/godotenv"
 	"github.com/schollz/progressbar/v3"
 )
 
 var NUM_WORKERS = runtime.NumCPU()
 
 func setup() {
+	godotenv.Load()
+
 	cache.Setup()
 	metadata.Setup(NUM_WORKERS)
+	geocoding.Setup(geocoding.GeocodingSettings{
+		TomTomApiKey: os.Getenv("TOMTOM_API_KEY"),
+	})
 }
 
 func cleanup() {
@@ -86,7 +94,7 @@ func startWorkers(files []string, processedFilesChan chan<- int, destDir string)
 func processFileWorker(id int, filesChan <-chan string, processedFilesChan chan<- int, destDir string) {
 	for srcFile := range filesChan {
 		metadata, err := metadata.ExtractMetadata(id, srcFile, &metadata.Options{
-			FetchLocation: false,
+			FetchLocation: true,
 		})
 		if err != nil {
 			// TODO: Silent log in file

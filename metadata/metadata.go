@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"github.com/Leyka/picor/geocoding"
 	"github.com/barasher/go-exiftool"
 )
 
@@ -62,7 +63,12 @@ func ExtractMetadata(instanceId int, file string, options *Options) (*Metadata, 
 
 	var city, country string = "", ""
 	if options.FetchLocation {
-		// coord := extractGPSCoordinates(&metadata)
+		coord := extractGPSCoordinates(&metadata)
+		location, err := geocoding.ReverseGeocoding(coord.Latitude, coord.Longitude)
+		if err == nil {
+			city = location.City
+			country = location.Country
+		}
 	}
 
 	return &Metadata{
