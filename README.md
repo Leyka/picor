@@ -1,3 +1,0 @@
-# picor
-
-Pictures organizer

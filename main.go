@@ -1,90 +1,33 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"path/filepath"
-	"sync"
-	"time"
+	"os"
+	"runtime"
 
-	"github.com/Leyka/picor/cache"
-	"github.com/Leyka/picor/exif"
-	"github.com/Leyka/picor/file"
-	"github.com/Leyka/picor/geocoder"
+	"github.com/Leyka/picor/geocoding"
 	"github.com/joho/godotenv"
-
-	_ "net/http/pprof"
 )
 
-const MAX_WORKERS = 10
-
-func setup() {
-	// Loads .env in memory
-	godotenv.Load()
-
-	cache.SetupCache()
-
-	geocoder.SetupGeocoderAPI()
-
-	exif.Setup()
-}
-
-func Cleanup() {
-	exif.CleanUp()
-}
+var NUM_WORKERS = runtime.NumCPU()
 
 func main() {
-
-	start := time.Now()
 	setup()
-	defer Cleanup()
+	defer cleanup()
 
-	srcDir := "debug"
-	destDir := "dest"
-
-	files, err := file.ListFilePathsByContentType(srcDir, file.IsTypeImageOrVideo)
-	if err != nil {
-		log.Panicln(err)
-	}
-
-	var wg sync.WaitGroup
-	filesChan := make(chan string, MAX_WORKERS)
-	pathExifsChan := exif.ExtractExifs(files, nil)
-
-	for i := 0; i < MAX_WORKERS; i++ {
-		wg.Add(1)
-		go worker(filesChan, pathExifsChan, destDir, &wg)
-	}
-
-	for _, file := range files {
-		filesChan <- file
-	}
-
-	close(filesChan)
-	wg.Wait()
-	fmt.Println("Done! Time elapsed:", time.Since(start))
 }
 
-func worker(srcFilePathsChan <-chan string, pathExifsChan <-chan *exif.PathExif, destDir string, wg *sync.WaitGroup) {
-	defer wg.Done()
+func setup() {
+	godotenv.Load()
 
-	// Every time srcFilePathsChan is filled, this loop will be executed
-	for srcPath := range srcFilePathsChan {
-		pathExif := <-pathExifsChan
-		exif := pathExif.Exif
+	SetupExiftool(NUM_WORKERS)
 
-		destDirPath := filepath.Join(destDir, exif.Year, exif.Country, exif.City)
-		file.CreateDirectoryIfNotExist(destDirPath)
+	geocoding.Setup(geocoding.GeocodingSettings{
+		TomTomApiKey: os.Getenv("TOMTOM_API_KEY"),
+	})
+}
 
-		destDirFile := filepath.Join(destDirPath, filepath.Base(srcPath))
-		err := file.CopyFile(srcPath, destDirFile, &file.CopyOptions{
-			ReplaceFile: true,
-			BufferSize:  file.DEFAULT_BUFFER_SIZE,
-		})
+func cleanup() {
+	CloseExiftool()
 
-		if err != nil {
-			log.Println("Error copying file:", err)
-			continue
-		}
-	}
+	geocoding.Close()
 }
