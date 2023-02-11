@@ -99,6 +99,6 @@ func isMaybeMonth(maybeMonth string) bool {
 		return false
 	}
 
-	// Still not sure if it's a day or a month at this point... It's a guess.
+	// Still not sure if it's a day or a month between 1-12; it's a guess
 	return true
 }

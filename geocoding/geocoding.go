@@ -1,8 +1,8 @@
 package geocoding
 
 import (
-	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/Leyka/picor/cache"
 	"github.com/Leyka/picor/geocoding/location"
@@ -19,6 +19,7 @@ type GeocodingSettings struct {
 }
 
 var api GeocodingAPI
+var mu sync.Mutex
 
 func Setup(settings GeocodingSettings) {
 	if settings.TomTomApiKey != "" {
@@ -42,6 +43,8 @@ func Setup(settings GeocodingSettings) {
 }
 
 func ReverseGeocoding(lat, long float64) (*location.Location, error) {
+	mu.Lock()
+	defer mu.Unlock()
 	var location *location.Location
 
 	// Check if location is cached
@@ -61,11 +64,11 @@ func ReverseGeocoding(lat, long float64) (*location.Location, error) {
 	}
 
 	// Cache location
-	locationJSON, err := json.Marshal(location)
-	if err != nil {
-		return nil, err
-	}
-	cache.Set(key, locationJSON)
+	// locationJSON, err := json.Marshal(location)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	cache.Set(key, location)
 
 	return location, nil
 }

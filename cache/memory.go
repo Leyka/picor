@@ -11,7 +11,7 @@ import (
 
 type inMemoryCache struct {
 	data     *map[string]interface{}
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	persist  bool
 	fileName string
 }
@@ -44,10 +44,11 @@ func newInMemoryCache(params newMemoryParams) *inMemoryCache {
 }
 
 func (c *inMemoryCache) Get(key string) (interface{}, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	if value, ok := (*c.data)[key]; ok {
+		fmt.Println("🎊 found", key, value.(string))
 		return value, nil
 	}
 
@@ -58,6 +59,8 @@ func (c *inMemoryCache) Get(key string) (interface{}, error) {
 func (c *inMemoryCache) Set(key string, value interface{}) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	fmt.Println("😃 set", key, value)
 
 	(*c.data)[key] = value
 	return nil

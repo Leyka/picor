@@ -1,6 +1,9 @@
 package cache
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 var instance Cache
 
@@ -13,17 +16,16 @@ type Cache interface {
 func Setup() {
 	instance = newInMemoryCache(newMemoryParams{
 		persist:  true,
-		fileName: ".cache",
+		fileName: ".cache.json",
 	})
-
-	instance.Set("test", "test")
 }
 
 func Close() {
 	instance.close()
 }
 
-func Get[T any](key string, res T) error {
+func Get[T any](key string, res *T) error {
+	fmt.Println("asking for", key)
 	data, err := instance.Get(key)
 	if err != nil {
 		return err

@@ -6,14 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"github.com/Leyka/picor/cache"
 	"github.com/Leyka/picor/file"
 	"github.com/Leyka/picor/geocoding"
 	"github.com/Leyka/picor/metadata"
 	"github.com/joho/godotenv"
-	"github.com/schollz/progressbar/v3"
 )
 
 var NUM_WORKERS = runtime.NumCPU()
@@ -34,7 +32,7 @@ func cleanup() {
 }
 
 func main() {
-	start := time.Now()
+	// start := time.Now()
 
 	setup()
 	defer cleanup()
@@ -51,28 +49,28 @@ func main() {
 
 	go startWorkers(files, processedFilesChan, "dest")
 
-	bar := progressbar.NewOptions(totalFiles,
-		progressbar.OptionSetDescription("copying"),
-		progressbar.OptionSetElapsedTime(true),
-		progressbar.OptionSetPredictTime(false),
-		progressbar.OptionSetWidth(40),
-		progressbar.OptionShowCount(),
-		progressbar.OptionSetRenderBlankState(true),
-		progressbar.OptionOnCompletion(func() {
-			fmt.Println()
-			fmt.Println("~ Completed in", time.Since(start))
-		}),
-	)
+	// bar := progressbar.NewOptions(totalFiles,
+	// 	progressbar.OptionSetDescription("copying"),
+	// 	progressbar.OptionSetElapsedTime(true),
+	// 	progressbar.OptionSetPredictTime(false),
+	// 	progressbar.OptionSetWidth(40),
+	// 	progressbar.OptionShowCount(),
+	// 	progressbar.OptionSetRenderBlankState(true),
+	// 	progressbar.OptionOnCompletion(func() {
+	// 		fmt.Println()
+	// 		fmt.Println("~ Completed in", time.Since(start))
+	// 	}),
+	// )
 
 	processedFiles := 0
 	for count := range processedFilesChan {
 		// Update progress bar
-		bar.Add(count)
+		// bar.Add(count)
 
 		processedFiles += count
 		if processedFiles == totalFiles {
 			close(processedFilesChan)
-			bar.Finish()
+			// bar.Finish()
 		}
 	}
 }
